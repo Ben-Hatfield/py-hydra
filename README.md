@@ -1,11 +1,16 @@
 # py-hydra
 Python Multi-Threading Manager
 
-Hydra tries to abstract the use of multiple threads to speed up performance by running in bulk "blocking" functions.
-This function is internally referred to as the task.
-This is achieved by launching a Hydra class that manages the locking and unlocking of critical sections.
-The "default" critical sections that are managed, is data sent to the task, and the results returned from the task.
+Hydra tries to abstract the common use of multiple threads, to speed up performance by running in bulk "blocking" functions.
+
+This blocking function is internally referred to by hydra as the `task`.
+
+This abstraction is achieved by launching a Hydra class that manages the locking and unlocking of critical sections.
+
+The "default" critical sections that are managed are: data sent to the task; and results returned from the task.
+
 Hydra adds a threading.Lock object and uses it throughout the HydraThreads and HydraQueues to maintain thread safety.
+
 Additional critical data sections can be managed by making HydraQueues using the parent Hydra.
 
 ### Sample applications:
