@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import queue
 import threading
 from time import sleep
@@ -8,6 +7,7 @@ class HydraQueue(queue.Queue):
     """Adds a Lock object to queue.Queue to make it thread safe.
     HydraQueue overwrites queue.Queue._put and queue.Queue._get to use the Lock object,
     but does not change any other functionality of queue.Queue"""
+
     def __init__(self, lock_object):
         """If a Hydra object is passed, Hydra.mutex is used to lock the queue.
         This allows all HydraThreads to safely access this Queue.
@@ -30,6 +30,7 @@ class HydraQueue(queue.Queue):
 class HydraThread(threading.Thread):
     """HydraThread adds the Hydra data management to threading.Thread
     Note that a HydraThread is killed by setting self.keep_alive to False from parent process/thread"""
+
     def __init__(self, thread_name, task, data_queue, result_queue, keep_alive=True):
         """task is the function to perform.
         data_queue to pipe data/args in (Thread safe)
@@ -75,36 +76,29 @@ class Hydra:
         self.threads = {}
         self.verbose = verbose
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, _type, value, traceback):
+        self.cleanup(wait=True)
+
     def add_work(self, work):
         """work is usually a tuple of args to be sent to the task.
         True can be sent if the task is meant to be a daemon that does not require arguments.
         Thread Safe"""
         self.work_queue.put(work)
 
-    def do_work(self, thread_name, task=print, keep_alive=True):
-        """Starts a non-blocking HydraThread"""
-        thread = HydraThread(thread_name, task, self.work_queue, self.result_queue, keep_alive=keep_alive)
-        self.threads[thread_name] = thread
-        thread.start()
+    def do_work(self, thread_name, task=print, keep_alive=True, thread_number=1, block=False):
+        """Starts HydraThread(s)."""
+        for n in range(thread_number):
+            t_name = '{}-{}'.format(thread_name, n)
+            thread = HydraThread(t_name, task, self.work_queue, self.result_queue, keep_alive=keep_alive)
+            self.threads[t_name] = thread
+            thread.start()
+        if block is True:
+            self.cleanup(thread_names=[thread_name], wait=True)
+            # Blocks until all work is done, and therefore all results have returned
         return
-
-    def do_parallel_work(self, thread_number=4, task=print):
-        threads = []
-        for t_id in range(thread_number):
-            thread_id = 'parallel-thread-{}'.format(t_id)
-            thread = HydraThread(thread_id, task, self.work_queue, self.result_queue,
-                                 keep_alive=True)
-            self.threads[thread_id] = thread
-            threads.append(thread_id)
-        for t in threads:
-            self.threads[t].start()
-        while not self.work_queue.qsize() == 0:
-            if self.verbose is True:
-                print('Working, results received so far is: {}'.format(self.result_queue.qsize()))
-            sleep(2)
-        self.cleanup(thread_ids=threads, wait=True)
-        # Blocks until all work is done, and therefore all results have returned
-
 
     def get_result(self):
         """Returns a single result from result_queue, or None if no results have queued.
@@ -114,14 +108,25 @@ class Hydra:
         else:
             return None
 
-    def get_results(self):
+    def get_results(self, number=None, timeout=None):
         """Returns a list of all results from result_queue, or [] if no results have queued.
         This function can be safely be called if results are still being added to the queue.
+        `number` is the number of results to wait for. `timeout` gets passed to queue.
         Just remember to check that you got all of the results you expected.
         Thread Safe"""
         results = []
-        while self.result_queue.qsize() != 0:
-            results.append(self.result_queue.get())
+        if number is not None:
+            while len(results) != number:
+                try:
+                    results.append(self.result_queue.get(timeout=timeout))
+                except queue.Empty:
+                    return results
+        else:
+            while self.result_queue.qsize() != 0:
+                try:
+                    results.append(self.result_queue.get(timeout=timeout))
+                except queue.Empty:
+                    return results
         return results
 
     def kill_worker(self, thread_id):
@@ -135,17 +140,23 @@ class Hydra:
             print('thread_id {} does not exist')
             return False
 
-    def cleanup(self, thread_ids=[], wait=False):
+    def cleanup(self, thread_names=[], wait=False):
         """Sets the thread_id.keep_alive to False.
         If wait is set to true, Thread.join is called for all thread_ids.
-        If no thread_ids are sent, all of the Hydra's threads are killed."""
-        if thread_ids == []:
-            thread_ids = self.threads.keys()
-        for t in thread_ids:
-            self.threads[t].keep_alive = False
+        If no thread_names are sent, all of the Hydra's threads are killed."""
+        thread_ids = []
+        if thread_names == []:
+            for t in self.threads.keys():
+                self.threads[t].keep_alive = False
+                thread_ids.append(t)
+        for name in thread_names:
+            for t in self.threads.keys():
+                if name in t:
+                    self.threads[t].keep_alive = False
+                    thread_ids.append(t)
         if wait is True:
             for t in thread_ids:
                 if self.threads[t].is_alive():
                     self.threads[t].join()
-        return
+        return thread_ids
 

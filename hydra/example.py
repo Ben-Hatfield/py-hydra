@@ -14,39 +14,33 @@ def method_a():
     for x in range(10):
         args_object = (0, x)
         numbers.append(_slow_add(args_object))
-    print('Slow adding {} took {} seconds.'.format(numbers, time.time()-start))
+    print('Slow function to add {} took {} seconds.'.format(numbers, time.time()-start))
 
 def method_b():
     print('Creating a 3 headed Hydra! Run for your lives!')
     start = time.time()
-    pet_hydra = hydra.Hydra()
-    for x in range(10):
-        pet_hydra.add_work((0, x))
-    pet_hydra.do_work('adder_thread-1', _slow_add)
-    pet_hydra.do_work('adder_thread-2', _slow_add)
-    pet_hydra.do_work('adder_thread-3', _slow_add)
-    numbers = []
-    while len(numbers) != 10:
-        [numbers.append(x) for x in pet_hydra.get_results()]
-    print('slow adding {} took {} seconds.'.format(numbers, time.time() - start))
-    pet_hydra.cleanup()
+    with hydra.Hydra() as pet_hydra:
+        for x in range(10):
+            pet_hydra.add_work((0, x))
+        pet_hydra.do_work('adder_thread', _slow_add, thread_number=3)
+        numbers = pet_hydra.get_results(10)
+        print('slow function to add {} took {} seconds.'.format(numbers, time.time() - start))
 
 def method_c():
     print('Creating a Crazy 10 headed Hydra! You\'re probably already dead.')
     start = time.time()
-    pet_hydra = hydra.Hydra()
-    for x in range(10):
-        pet_hydra.add_work((0, x))
-    pet_hydra.do_parallel_work(thread_number=10, task=_slow_add)
-    numbers = pet_hydra.get_results()
-    print('slow adding {} took {} seconds.'.format(numbers, time.time() - start))
-    pet_hydra.cleanup()
+    with hydra.Hydra() as pet_hydra:
+        for x in range(10):
+            pet_hydra.add_work((0, x))
+        pet_hydra.do_work('blocking', thread_number=10, task=_slow_add, block=True)
+        numbers = pet_hydra.get_results()
+        print('slow function to add {} took {} seconds.'.format(numbers, time.time() - start))
 
 if __name__ == '__main__':
     print('''Adds 10 sets of numbers together.
-First all in serial,
-then 3 concurently,
-then all 10 concurently.''')
+First all of them in serial.
+Then 3 at a time concurently.
+Then all 10 at once in forced parallel.''')
     method_a()
     method_b()
     method_c()
