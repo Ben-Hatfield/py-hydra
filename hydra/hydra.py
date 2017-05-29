@@ -149,36 +149,3 @@ class Hydra:
                     self.threads[t].join()
         return
 
-
-if __name__ == '__main__':
-    import time
-    def _slow_add(args_object):
-        a, b = args_object
-        time.sleep(0.3)
-        return a + b
-    print('Running the slow way....')
-    start = time.time()
-    numbers = []
-    for x in range(10):
-        args_object = (0, x)
-        numbers.append(_slow_add(args_object))
-    print('slow adding {} took {} seconds.'.format(numbers, time.time()-start))
-    print('Creating a 3 headed Hydra! Run for your lives!')
-    start = time.time()
-    pet_hydra = Hydra()
-    for x in range(10):
-        pet_hydra.add_work((0, x))
-    pet_hydra.do_work('adder_thread-1', _slow_add)
-    pet_hydra.do_work('adder_thread-2', _slow_add)
-    pet_hydra.do_work('adder_thread-3', _slow_add)
-    numbers = []
-    while len(numbers) != 10:
-        [numbers.append(x) for x in pet_hydra.get_results()]
-    print('slow adding {} took {} seconds.'.format(numbers, time.time() - start))
-    print('Creating a Crazy 10 headed Hydra! You\'re probably already dead.')
-    start = time.time()
-    for x in range(10):
-        pet_hydra.add_work((0, x))
-    pet_hydra.do_parallel_work(thread_number=10, task=_slow_add)
-    numbers = pet_hydra.get_results()
-    print('slow adding {} took {} seconds.'.format(numbers, time.time() - start))

@@ -25,6 +25,7 @@ for url in url_list:
     bad_idea.add_work(url)
 bad_idea.do_parallel_work(thread_number=31337, task=requests.get)
 webpages = bad_idea.get_results()
+bad_idea.cleanup()
 ```
 ##### Two separate, simultaneous threads
 ```
@@ -44,4 +45,6 @@ adder.cleanup(wait=True)
 multiplier.cleanup(wait=True)
 useless = adder.get_results()
 also_useless = multiplier.get_results()
+adder.cleanup()
+multiplier.cleanup()
 ```
