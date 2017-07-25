@@ -40,7 +40,7 @@ if __name__ == '__main__':
     print('''Adds 10 sets of numbers together.
 First all of them in serial.
 Then 3 at a time concurently.
-Then all 10 at once in forced parallel.''')
+Then all 10 at once in a blocking parallel.''')
     method_a()
     method_b()
     method_c()
