@@ -39,17 +39,15 @@ class HydraThread(threading.Thread):
 
 
 class Hydra:
-    """Generic Multi-Threading manager class.
-    Uses Queue to get data in and out of running threads.
-    thread_number sets the numbers of threads to run simultaneously.
-    Baked-in threading.Lock() makes HydraThread and Queue to be thread safe."""
+    """Queued stdin/stdout Multi-Threading manager class.
+    Uses Queue to get data into and out of running threads.
+    thread_number sets the numbers of threads to run simultaneously."""
 
     def __init__(self, verbose=False):
-        self.mutex = threading.Lock()
+
         self.work_queue = queue.Queue()
         self.result_queue = queue.Queue()
         self.threads = {}
-        self.verbose = verbose
 
     def __enter__(self):
         return self

@@ -1,43 +1,38 @@
 # py-hydra
-Python Multi-Threading Manager
+Python Queued stdin/stdout Multi-Threading manager.
 
-Hydra tries to abstract the setup of a common use of multiple threads, to reduce time spent waiting for blocking calls.
+Because of the GIL, this is only useful when the time to save from the blocking call is I/O driven, for example network I/O.
 
 This blocking function is internally referred to by hydra as the `task`.
 
+Uses multiple Queues to get data into and out of multiple running threads.
+
 This abstraction is achieved by launching a Hydra class that manages the locking and unlocking of critical sections.
 
-The "default" critical sections that are managed are: data sent to the task; and results returned from the task.
-
-Hydra adds a threading.Lock object and uses it throughout the HydraThreads and HydraQueues to maintain thread safety.
-
-Additional critical data sections can be managed by making HydraQueues using the parent Hydra.
+The default critical sections that are managed are: data sent to the task; and results returned from the task. (stdin, stdout)
 
 ```
 # Time consuming function
-def f(args):
-    a,b = args
-    time.sleep(10)
-    x = a + b
-    return x
+requests.get('https://jsonplaceholder.typicode.com/albums')
 
 # Hydra class init and execution
-data = [(0,0), (0,1), (0,2)]
+url_list = ['https://jsonplaceholder.typicode.com/albums' for x in range(3)]
+
 with hydra.Hydra() as fast:
-    for args in data:
-        fast.add_work(args)
-    fast.do_work('thread_id_root',f,threads=2)
-    results = fast.get_results(3)
+    for url in url_list:
+        fast.add_work(url)
+    fast.do_work('thread_id_root', requests.get, threads=2)
+    results = fast.get_results(len(url_list))
 
 INPUT QUEUE   TASK  FUNCTION   OUPUT QUEUE
-##########  | ############## | ###########
-# args   #  | args-> f(args) | #    x    #
-# args   #  | args-> f(args) | #    x    #
-# args   #  |                | #    x    #
-##########  | #############  | ###########
+##########  | ############## | ############
+# url    #  | url-> get(url) | # responce #
+# url    #  | url-> get(url) | # responce #
+# url    #  |                | # responce #
+##########  | #############  | ############
 
-# 0 three args put into input queue;
-# 1 two threads running the 'f' task collect waiting args;
+# 0 four urls put into work queue;
+# 1 two threads running the 'get' task collect waiting url from work queue;
 # 2 two results put into output queue
 # 3 one thread collects the remaining "args", the other thread dies.
 # 4 the last result is put into outbound queue
@@ -54,7 +49,7 @@ url_list = ['https://github.com/Ben-Hatfield','https://docs.python.org/3/library
 with hydra.Hydra() as bad_idea:
     for url in url_list:
         bad_idea.add_work(url)
-    bad_idea.do_parallel_work(thread_number=31337, task=requests.get)
+    bad_idea.do_work(thread_number=31337, task=requests.get, block=True)
     webpages = bad_idea.get_results(len(url_list))
 ```
 ##### Two separate, simultaneous functions. I dont know if this is useful, but it's fun to do.
