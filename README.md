@@ -55,7 +55,7 @@ with hydra.Hydra() as bad_idea:
     for url in url_list:
         bad_idea.add_work(url)
     bad_idea.do_parallel_work(thread_number=31337, task=requests.get)
-    webpages = bad_idea.get_results()
+    webpages = bad_idea.get_results(len(url_list))
 ```
 ##### Two separate, simultaneous functions. I dont know if this is useful, but it's fun to do.
 ```
