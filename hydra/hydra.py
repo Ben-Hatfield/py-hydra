@@ -1,43 +1,18 @@
 import queue
 import threading
-from time import sleep
-
-
-class HydraQueue(queue.Queue):
-    """Adds a Lock object to queue.Queue to make it thread safe.
-    HydraQueue overwrites queue.Queue._put and queue.Queue._get to use the Lock object,
-    but does not change any other functionality of queue.Queue"""
-
-    def __init__(self, lock_object):
-        """If a Hydra object is passed, Hydra.mutex is used to lock the queue.
-        This allows all HydraThreads to safely access this Queue.
-        Otherwise, any Lock or Lock-like object can be used."""
-        queue.Queue.__init__(self)
-        if type(lock_object) == Hydra:
-            self.hydra_mutex = lock_object.hydra_mutex
-        else:
-            self.hydra_mutex = lock_object
-
-    def _put(self, item):
-        with self.hydra_mutex:
-            self.queue.append(item)
-
-    def _get(self):
-        with self.hydra_mutex:
-            return self.queue.popleft()
 
 
 class HydraThread(threading.Thread):
     """HydraThread adds the Hydra data management to threading.Thread
     Note that a HydraThread is killed by setting self.keep_alive to False from parent process/thread"""
 
-    def __init__(self, thread_name, task, data_queue, result_queue, keep_alive=True):
+    def __init__(self, thread_name, task, data_queue, result_queue, keep_alive=True, *args, **kwargs):
         """task is the function to perform.
         data_queue to pipe data/args in (Thread safe)
         results_queue to pipe results out (Thread safe)
-        keep_alive is used to "daemonize" the thread
+        keep_alive is used to let the thread live even if the work queue is empty
         Initializing keep_alive as False will ensure the thread does at most one unit of work"""
-        threading.Thread.__init__(self, name=thread_name)
+        threading.Thread.__init__(self, name=thread_name, args=args, kwargs=kwargs)
         self.task = task
         self.data_queue = data_queue
         self.result_queue = result_queue
@@ -65,14 +40,14 @@ class HydraThread(threading.Thread):
 
 class Hydra:
     """Generic Multi-Threading manager class.
-    Uses HydraQueue to get data in and out of running threads.
+    Uses Queue to get data in and out of running threads.
     thread_number sets the numbers of threads to run simultaneously.
-    Baked-in threading.Lock() makes HydraThread and HydraQueue to be thread safe."""
+    Baked-in threading.Lock() makes HydraThread and Queue to be thread safe."""
 
     def __init__(self, verbose=False):
         self.mutex = threading.Lock()
-        self.work_queue = HydraQueue(self.mutex)
-        self.result_queue = HydraQueue(self.mutex)
+        self.work_queue = queue.Queue()
+        self.result_queue = queue.Queue()
         self.threads = {}
         self.verbose = verbose
 
@@ -88,11 +63,11 @@ class Hydra:
         Thread Safe"""
         self.work_queue.put(work)
 
-    def do_work(self, thread_name, task=print, keep_alive=True, thread_number=1, block=False):
+    def do_work(self, thread_name, task=print, keep_alive=True, thread_number=1, block=False, *args, **kwargs):
         """Starts HydraThread(s)."""
         for n in range(thread_number):
             t_name = '{}-{}'.format(thread_name, n)
-            thread = HydraThread(t_name, task, self.work_queue, self.result_queue, keep_alive=keep_alive)
+            thread = HydraThread(t_name, task, self.work_queue, self.result_queue, args=args, kwargs=kwargs, keep_alive=keep_alive)
             self.threads[t_name] = thread
             thread.start()
         if block is True:
@@ -159,4 +134,3 @@ class Hydra:
                 if self.threads[t].is_alive():
                     self.threads[t].join()
         return thread_ids
-

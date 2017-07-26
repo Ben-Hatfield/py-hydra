@@ -1,46 +1,40 @@
 import hydra
+import requests
 import time
 
-
-def _slow_add(args_object):
-        a, b = args_object
-        time.sleep(0.3)
-        return a + b
 
 def method_a():
     print('Running the slow way....')
     start = time.time()
-    numbers = []
-    for x in range(10):
-        args_object = (0, x)
-        numbers.append(_slow_add(args_object))
-    print('Slow function to add {} took {} seconds.'.format(numbers, time.time()-start))
+    for x in range(25):
+        requests.get('https://jsonplaceholder.typicode.com/albums', headers={'User-Agent':'py-hydra test case'})
+    print('25 Consecutive calls to webpage took {} seconds.'.format(time.time()-start))
 
 def method_b():
     print('Creating a 3 headed Hydra! Run for your lives!')
     start = time.time()
     with hydra.Hydra() as pet_hydra:
-        for x in range(10):
-            pet_hydra.add_work((0, x))
-        pet_hydra.do_work('adder_thread', _slow_add, thread_number=3)
-        numbers = pet_hydra.get_results(10)
-        print('slow function to add {} took {} seconds.'.format(numbers, time.time() - start))
+        for x in range(25):
+            pet_hydra.add_work('https://jsonplaceholder.typicode.com/albums')
+        pet_hydra.do_work('fibonacii_thread', requests.get, thread_number=3, headers={'User-Agent':'py-hydra test case'})
+        rs = pet_hydra.get_results(25)
+    print('25 calls to webpage using 3 threads took {} seconds.'.format(time.time() - start))
 
 def method_c():
-    print('Creating a Crazy 10 headed Hydra! You\'re probably already dead.')
+    print('Creating a Crazy 25 headed Hydra! You\'re probably already dead.')
     start = time.time()
     with hydra.Hydra() as pet_hydra:
-        for x in range(10):
-            pet_hydra.add_work((0, x))
-        pet_hydra.do_work('blocking', thread_number=10, task=_slow_add, block=True)
-        numbers = pet_hydra.get_results()
-        print('slow function to add {} took {} seconds.'.format(numbers, time.time() - start))
+        for x in range(25):
+            pet_hydra.add_work('https://jsonplaceholder.typicode.com/albums')
+        pet_hydra.do_work('blocking', thread_number=25, task=requests.get, block=True, headers={'User-Agent':'py-hydra test case'})
+    print('25 calls using 25 threads to webpage took {} seconds.'.format(time.time() - start))
 
 if __name__ == '__main__':
-    print('''Adds 10 sets of numbers together.
+    print('''Gets 25 webpages of data.
 First all of them in serial.
 Then 3 at a time concurently.
-Then all 10 at once in a blocking parallel.''')
+Then all 25 at once in a blocking parallel.''')
     method_a()
     method_b()
     method_c()
+
